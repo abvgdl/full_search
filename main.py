@@ -1,32 +1,27 @@
 import sys
-import random
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
-from PyQt5.QtGui import QPainter, QColor
-from PyQt5.uic import loadUi
+from io import BytesIO
 
+import requests
+from PIL import Image
+from get_object_size import get_size_parms
 
-class CircleDrawer(QWidget):
-    def __init__(self):
-        super().__init__()
-        loadUi('UI.ui', self)
-        self.setWindowTitle('Генератор окружностей')
+toponym_to_find = " ".join(sys.argv[1:])
+geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
+geocoder_params = {
+    "apikey": "",
+    "geocode": toponym_to_find,
+    "format": "json"}
+response = requests.get(geocoder_api_server, params=geocoder_params)
+if not response:
+    pass
+json_response = response.json()
+toponym = json_response["response"]["GeoObjectCollection"][
+    "featureMember"][0]["GeoObject"]
+toponym_coodrinates = toponym["Point"]["pos"]
+toponym_longitude, toponym_lattitude = toponym_coodrinates.split(" ")
 
-        self.button_draw.clicked.connect(self.draw_circle)
-        self.diameter = 0
+address_ll = ",".join([toponym_longitude, toponym_lattitude])
+response = get_size_parms(json_response, address_ll)
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        color = QColor('yellow')
-        painter.setBrush(color)
-        painter.drawEllipse(50, 50, self.diameter, self.diameter)
-
-    def draw_circle(self):
-        self.diameter = random.randint(20, 100)
-        self.update()
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = CircleDrawer()
-    window.show()
-    sys.exit(app.exec_())
+Image.open(BytesIO(
+    response.content)).show()
